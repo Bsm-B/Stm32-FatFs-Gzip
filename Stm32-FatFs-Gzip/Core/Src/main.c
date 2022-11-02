@@ -35,9 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-FATFS 	FatFs;	    // FATFS handle
-FRESULT fres; 		// Common result code
-FIL		fil;		// File object structure
+#define FNAME_ENABLE
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -56,7 +54,10 @@ TSC_HandleTypeDef htsc;
 UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
-
+FATFS 	FatFs;	    // FATFS handle
+FRESULT fres; 		// Common result code
+FIL		fil;		// File object structure
+UINT 	bw;         // 	Pointer to number of bytes written
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,76 +112,218 @@ int main(void)
   MX_USART4_UART_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+
+
+  // #################################" Compressing text to GZIP "################################# //
+
   fres = f_mount(&FatFs, "", 1); // 1 -> Mount now
 
-  if (fres == FR_OK) {
+  	  if (fres == FR_OK) {
 
-      printk("\n Mount SDCard \n");
+  	      printk("\n Mount SDCard \n");
 
-      const char			*source 				= "I have Java!";
-      const char 			*file_name_gz			= "demo.gz";
-      const char 			*file_name_txt			= "demo.txt";
-      struct uzlib_comp 	comp					= {0};
-      size_t 				len 					= strlen(source);
-      unsigned long 		file_size;
+		  const char *data					= "I hate Java Programming Language ! change my mind";
+		  const char *destination_name 		= "demo.gz";
 
-      comp.dict_size 								= 32768;
-      comp.hash_bits 								= 10;
+  	      struct uzlib_comp 	comp					= {0};
+  	      unsigned long 		file_size				=  0;
+  	      size_t 				len 					= strlen(data);
 
-      size_t hash_size = sizeof(uzlib_hash_entry_t) * (1 << comp.hash_bits);
-      comp.hash_table = malloc(hash_size);
+  	      comp.dict_size 								= 32768;
+  	      comp.hash_bits 								= 10;
 
-      if (comp.hash_table == NULL) printk("\n Memory allocation error \n");
-      memset(comp.hash_table, 0, hash_size);
+  	      size_t hash_size = sizeof(uzlib_hash_entry_t) * (1 << comp.hash_bits);
+  	      comp.hash_table = malloc(hash_size);
 
-      zlib_start_block(&comp);
-      uzlib_compress(&comp, (const unsigned char*) source, len);
-      zlib_finish_block(&comp);
+  	      if (comp.hash_table == NULL) {
+  	    	printk("\n Memory allocation error \n");
+  	    	return -1;
+  	      }
 
-      printf("\n Data : %lu raw bytes \n", (uint32_t)strlen(source)+1);
-      printk("\n Compressed : to %u raw bytes \n", comp.outlen);
+  	      memset(comp.hash_table, 0, hash_size);
 
-      fres = f_open(&fil, file_name_gz,
-                          FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
+  	      zlib_start_block(&comp);
+  	      uzlib_compress(&comp, (const unsigned char*) data, len);
+  	      zlib_finish_block(&comp);
 
-      if (fres == FR_OK) {
+  	      printf("\n Data : %lu raw bytes \n", (uint32_t)strlen(data)+1);
+  	      printk("\n Compressed : to %u raw bytes \n", comp.outlen);
 
-          // Create File Header
-          uint32_t 	mtime 		 = 720489600; 		// 	Initial release GZIP 31 October 1992;
-          UINT		bw;								// 	Pointer to number of bytes written
+  	      fres = f_open(&fil, destination_name,
+  	                          FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
 
-          f_putc(0x1f, &fil);						//	Magic Number
-          f_putc(0x8b, &fil);						//	Magic Number
-          f_putc(0x08, &fil); 						//	Compression Method
-          f_putc(0x08, &fil); 						//	File Flags  FNAME : 0x08 ->	The file contains an original file name string
+  	      if (fres == FR_OK) {
 
-          fres = f_write(&fil, &mtime, sizeof(mtime), &bw);  // Set File timestamp
+  	          // Create File Header
+  	          uint32_t 	mtime 		 = 720489600; 		// 	Initial release GZIP 31 October 1992;
 
-          f_putc(0x04, &fil); 						//	XFL
-          f_putc(0x03, &fil);						//	OS
+  	          f_putc(0x1f, &fil);						//	Magic Number
+  	          f_putc(0x8b, &fil);						//	Magic Number
+  	          f_putc(0x08, &fil); 						//	Compression Method
+#ifdef FNAME_ENABLE
+  	          f_putc(0x08, &fil); 						//	File Flags  FNAME : 0x08 ->	The file contains an original file name string
+#else
+  	          f_putc(0x00, &fil); 						//	File Flags
+#endif
+  	          fres = f_write(&fil, &mtime, sizeof(mtime), &bw);  // Set File timestamp
 
-          // Create Payload
-          fres = f_write(&fil, file_name_txt, strlen(file_name_txt), &bw);
-          f_putc(0x00, &fil); 	  					//	EOF
+  	          f_putc(0x04, &fil); 						//	XFL
+  	          f_putc(0x03, &fil);						//	OS
 
-          fres = f_write(&fil, comp.outbuf, comp.outlen, &bw);
+#ifdef FNAME_ENABLE
+  	          // Create Payload
+  			  const char *orginal_name 			= "demo.txt";
+  	          fres = f_write(&fil, orginal_name, strlen(orginal_name), &bw);
+  	          f_putc(0x00, &fil); 	  					//	EOF
+#endif
 
-          uint32_t crc = ~uzlib_crc32(source, len, ~0);	// Calculate CRC
+  	          fres = f_write(&fil, comp.outbuf, comp.outlen, &bw);
 
-          fres = f_write(&fil, &crc,sizeof(crc), &bw);	// Add CRC
+  	          uint32_t crc = ~uzlib_crc32(data, len, ~0);	// Calculate CRC
 
-          fres = f_write(&fil, &len, sizeof(len), &bw);	// Add original length
+  	          fres = f_write(&fil, &crc,sizeof(crc), &bw);	// Add CRC
 
-          // Close file
-          file_size = f_size(&fil);
-          f_close(&fil);
+  	          fres = f_write(&fil, &len, sizeof(len), &bw);	// Add original length
 
-      }
-      printk("\n %s Successfully generated! %ul bytes \n",file_name_gz, file_size);
+  	          // Close file
+  	          file_size = f_size(&fil);
+  	          f_close(&fil);
 
-  }
-  f_mount(NULL, "", 0);
-  printk("\n Unmount SDCard \n");
+  	      }
+
+  	      printk("\n %s Successfully generated! %ul bytes \n",destination_name, file_size);
+
+  	  }
+  	  f_mount(NULL, "", 0);
+  	  printk("\n Unmount SDCard \n");
+
+  // #################################" Decompress GZIP to text "################################# //
+
+
+  	fres = f_mount(&FatFs, "", 1); // 1 -> Mount now
+
+  		  if (fres == FR_OK)
+
+  		  {
+
+  			const char 		*compressed_file = "demo.gz";
+  			unsigned char 	*dest;
+  			unsigned int	len;
+  			unsigned int	dlen;
+
+  			uint8_t res;
+
+  			uzlib_init();
+
+  			fres = f_open(&fil, compressed_file, FA_READ);
+
+  			f_lseek(&fil, f_size(&fil));
+
+  			len = f_tell(&fil);
+  			f_rewind(&fil);
+
+  			BYTE *data;
+  			data = (BYTE *) malloc(len);
+
+  			memset(data,0,len);
+
+  			fres = f_read(&fil, data, len, &bw);
+
+  			f_close(&fil);
+
+  			if (len < 4) {
+
+  				printk("\n File too small \n");
+  				return -1;
+
+  			}
+
+  			dlen =            data[len - 1];
+  			dlen = 256*dlen + data[len - 2];
+  			dlen = 256*dlen + data[len - 3];
+  			dlen = 256*dlen + data[len - 4];
+
+  			/* there can be mismatch between length in the trailer and actual
+  			data stream; to avoid buffer overruns on overlong streams, reserve
+  			one extra byte */
+
+  			dlen++;
+  			dest = (unsigned char *)malloc(dlen);
+
+  			if (dest == NULL) {
+
+  				printk("\n Memory allocation error \n");
+  				return -1;
+  			}
+
+  			struct uzlib_uncomp d;
+
+  			uzlib_uncompress_init(&d, NULL, 0);
+
+  			d.source = data;
+  			d.source_limit = data + len - 4;
+  			d.source_read_cb = NULL;
+
+#ifdef FNAME_ENABLE
+
+  			char *original_name;
+
+  			res = uzlib_gzip_parse_header_fname(&d,&original_name);
+
+  			if (res != TINF_OK) {
+
+  				printf("\n Error parsing header: %d\n", res);
+  				return res;
+
+  			}
+
+  			printk("\n Original file name : %s",original_name);
+
+#else
+  			res = uzlib_gzip_parse_header(&d);
+
+  			if (res != TINF_OK) {
+
+  				printf("Error parsing header: %d\n", res);
+  				return res;
+
+  			}
+
+#endif
+  			d.dest_start = d.dest = dest;
+
+  			while (dlen)
+
+  			{
+
+				unsigned int chunk_len = dlen < 1 ? dlen : 1;
+				d.dest_limit = d.dest + chunk_len;
+				res = uzlib_uncompress_chksum(&d);
+				dlen -= chunk_len;
+				if (res != TINF_OK) {
+					break;
+					}
+  			}
+
+  			if (res != TINF_DONE)
+  			{
+  				printf("\n Error during decompression: %d\n", res);
+  				return res;
+
+  			}
+  			printf("\n Decompressed %d bytes\n", d.dest - dest);
+
+  			dest[dlen]  = '\0';
+
+  			printf("\n Data : \n %s",dest);
+
+  			free(data);
+  			free(dest);
+
+  		  }
+
+	  f_mount(NULL, "", 0);
+	  printk("\n Unmount SDCard \n");
 
   /* USER CODE END 2 */
 
