@@ -137,6 +137,7 @@ int  TINFCC uzlib_uncompress(TINF_DATA *d);
 int  TINFCC uzlib_uncompress_chksum(TINF_DATA *d);
 
 int TINFCC uzlib_zlib_parse_header(TINF_DATA *d);
+int TINFCC uzlib_gzip_parse_header(TINF_DATA *d);
 int TINFCC uzlib_gzip_parse_header_fname(TINF_DATA *d,  char ** fname);
 
 /* Compression API */

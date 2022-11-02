@@ -645,6 +645,25 @@ void printk(const char *fmt, ...)
 	int len = strlen(buffer);
 	HAL_UART_Transmit(&huart4, (uint8_t*) buffer, len, -1);
 }
+
+
+int data_to_gzip(const char *data, const char *orginal_name, const char * destination_name)
+{
+
+
+
+	  return 0;
+}
+
+int gzip_to_data(const char * compressed_file, char ** text)
+{
+
+
+	  return 0;
+
+}
+
+
 /* USER CODE END 4 */
 
 /**
