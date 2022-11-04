@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define FNAME_ENABLE
+//define FNAME_ENABLE
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -119,10 +119,13 @@ int main(void)
   fres = f_mount(&FatFs, "", 1); // 1 -> Mount now
 
   	  if (fres == FR_OK) {
-
+  		  printk("\n Compressing \n");
   	      printk("\n Mount SDCard \n");
 
-		  const char *data					= "I hate Java Programming Language ! change my mind";
+		  const char *data					= "I hate Java Programming Language ! \n"
+		  " Because it's way way way way way way way way, very way way way way, super way way way way way way toooooooooooooo verbose.";
+
+
 		  const char *destination_name 		= "demo.gz";
 
   	      struct uzlib_comp 	comp					= {0};
@@ -146,8 +149,8 @@ int main(void)
   	      uzlib_compress(&comp, (const unsigned char*) data, len);
   	      zlib_finish_block(&comp);
 
-  	      printf("\n Data : %lu raw bytes \n", (uint32_t)strlen(data)+1);
-  	      printk("\n Compressed : to %u raw bytes \n", comp.outlen);
+  	      printk("\n Data : %s  \n ( %lu  bytes ) \n",data, (uint32_t)strlen(data));
+  	      printk("\n Compressed data to : to %u  bytes \n", comp.outlen);
 
   	      fres = f_open(&fil, destination_name,
   	                          FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
@@ -191,13 +194,13 @@ int main(void)
 
   	      }
 
-  	      printk("\n %s Successfully generated! %ul bytes \n",destination_name, file_size);
+  	      printk("\n Successfully generated!  %s ( %u bytes ) \n",destination_name, file_size);
 
   	  }
   	  f_mount(NULL, "", 0);
   	  printk("\n Unmount SDCard \n");
 
-  // #################################" Decompress GZIP to text "################################# //
+  // #################################" Decompressing GZIP to text "################################# //
 
 
   	fres = f_mount(&FatFs, "", 1); // 1 -> Mount now
@@ -205,6 +208,9 @@ int main(void)
   		  if (fres == FR_OK)
 
   		  {
+
+  	  		printk("\n Decompressing \n");
+    	    printk("\n Mount SDCard \n");
 
   			const char 		*compressed_file = "demo.gz";
   			unsigned char 	*dest;
@@ -273,7 +279,7 @@ int main(void)
 
   			if (res != TINF_OK) {
 
-  				printf("\n Error parsing header: %d\n", res);
+  				printk("\n Error parsing header: %d\n", res);
   				return res;
 
   			}
@@ -309,15 +315,15 @@ int main(void)
 
   			if (res != TINF_DONE)
   			{
-  				printf("\n Error during decompression: %d\n", res);
+  				printk("\n Error during decompression: %d\n", res);
   				return res;
 
   			}
-  			printf("\n Decompressed %d bytes\n", d.dest - dest);
+  			printk("\n Decompressed %d bytes\n", d.dest - dest);
 
   			dest[outlen]  = '\0';
 
-  			printf("\n Data : \n %s",dest);
+  			printk("\n Data : \n %s",dest);
 
   			free(data);
   			free(dest);
