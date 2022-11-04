@@ -209,7 +209,7 @@ int main(void)
   			const char 		*compressed_file = "demo.gz";
   			unsigned char 	*dest;
   			unsigned int	len;
-  			unsigned int	dlen;
+  			unsigned int	dlen,outlen;
 
   			uint8_t res;
 
@@ -243,6 +243,7 @@ int main(void)
   			dlen = 256*dlen + data[len - 3];
   			dlen = 256*dlen + data[len - 4];
 
+  			outlen = dlen;
   			/* there can be mismatch between length in the trailer and actual
   			data stream; to avoid buffer overruns on overlong streams, reserve
   			one extra byte */
@@ -292,6 +293,7 @@ int main(void)
 #endif
   			d.dest_start = d.dest = dest;
 
+
   			while (dlen)
 
   			{
@@ -313,7 +315,7 @@ int main(void)
   			}
   			printf("\n Decompressed %d bytes\n", d.dest - dest);
 
-  			dest[dlen]  = '\0';
+  			dest[outlen]  = '\0';
 
   			printf("\n Data : \n %s",dest);
 
@@ -644,23 +646,6 @@ void printk(const char *fmt, ...)
 
 	int len = strlen(buffer);
 	HAL_UART_Transmit(&huart4, (uint8_t*) buffer, len, -1);
-}
-
-
-int data_to_gzip(const char *data, const char *orginal_name, const char * destination_name)
-{
-
-
-
-	  return 0;
-}
-
-int gzip_to_data(const char * compressed_file, char ** text)
-{
-
-
-	  return 0;
-
 }
 
 
